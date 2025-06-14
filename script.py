@@ -131,7 +131,7 @@ def main():
     app.run_webhook(
         listen="0.0.0.0",
         port=port,
-        webhook_url=WEBHOOK_URL,
+        webhook_url=WEBHOOK_HOST,
     )
 
 if __name__ == "__main__":
