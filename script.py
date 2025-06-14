@@ -109,22 +109,25 @@ async def post_init(app: Application):
     asyncio.create_task(monitor_loop(app))
     print("Webhook set and monitor loop started.")
 
-# === Main async function ===
-async def main():
+# === Main Function (not async) ===
+def main():
     port = int(os.getenv("PORT", 5000))
 
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).post_init(post_init).build()
 
-    # Delete webhook to avoid conflicts before starting webhook mode
-    print("Deleting previous webhook (if any)...")
-    await app.bot.delete_webhook()
-    print("Webhook deleted.")
+    # Delete webhook before running (run async setup task manually)
+    async def init():
+        print("Deleting previous webhook...")
+        await app.bot.delete_webhook()
+        print("Deleted.")
+
+    asyncio.get_event_loop().run_until_complete(init())
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("stop", stop))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_pairs_input))
 
-    print(f"Starting webhook on port {port} with URL {WEBHOOK_URL}")
+    print(f"Starting webhook on port {port}")
     app.run_webhook(
         listen="0.0.0.0",
         port=port,
@@ -132,4 +135,4 @@ async def main():
     )
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
