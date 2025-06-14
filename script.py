@@ -13,6 +13,8 @@ load_dotenv()
 
 # === Configuration ===
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+WEBHOOK_HOST = os.getenv("WEBHOOK_HOST")  # e.g. https://your-app-name.onrender.com
+WEBHOOK_URL = f"{WEBHOOK_HOST}/{TELEGRAM_TOKEN}"
 
 # Twilio Config
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
@@ -24,8 +26,8 @@ TWILIO_TO_PHONE = os.getenv("TWILIO_TO_PHONE")
 EXCHANGES = ["OANDA", "FOREXCOM", "FX_IDC", "SAXO", "CURRENCYCOM"]
 
 # Globals
-user_currency_pairs = {}  # { chat_id: [pair1, pair2, ...] }
-last_signals = {}         # { (chat_id, pair): last_signal }
+user_currency_pairs = {}
+last_signals = {}
 twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
 # === Utility Functions ===
@@ -55,7 +57,7 @@ def get_signal_for_pair(symbol):
             continue
     return None, None
 
-# === Telegram Command Handlers ===
+# === Telegram Handlers ===
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "👋 Welcome! Please send me the currency pairs you want to monitor.\n"
@@ -99,21 +101,28 @@ async def monitor_loop(app: Application):
                         print(f"⚠️ No exchange data for {symbol}")
                 except Exception as e:
                     print(f"❌ Error with {symbol}: {e}")
-        await asyncio.sleep(300)  # Every 5 mins
+        await asyncio.sleep(300)
 
-# === Post-Initialization Hook ===
+# === Webhook Setup ===
 async def post_init(app: Application):
-    asyncio.create_task(monitor_loop(app))  # Run the loop in background
+    await app.bot.set_webhook(url=WEBHOOK_URL)
+    asyncio.create_task(monitor_loop(app))
 
-# === Main Entry Point ===
+# === Main Function ===
 def main():
+    port = int(os.getenv("PORT", 5000))
+
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).post_init(post_init).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("stop", stop))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_pairs_input))
 
-    app.run_polling()
+    app.run_webhook(
+        listen="0.0.0.0",
+        port=port,
+        webhook_url=WEBHOOK_URL  # No webhook_path here
+    )
 
 if __name__ == "__main__":
     main()
