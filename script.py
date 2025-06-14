@@ -111,7 +111,7 @@ async def post_init(app: Application):
 
 # === Main Function (not async) ===
 def main():
-    port = int(os.getenv("PORT", 5000))
+    port = int(os.getenv("PORT"))
 
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).post_init(post_init).build()
 
